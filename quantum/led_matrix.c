@@ -201,9 +201,9 @@ void process_led_matrix(uint8_t row, uint8_t col, bool pressed) {
 #endif  // LED_MATRIX_KEYREACTIVE_ENABLED
 
 #if defined(LED_MATRIX_FRAMEBUFFER_EFFECTS) && !defined(DISABLE_LED_MATRIX_TYPING_HEATMAP)
-    if (led_matrix_eeconfig.mode == LED_MATRIX_TYPING_HEATMAP) {
-        process_led_matrix_typing_heatmap(row, col);
-    }
+    //if (led_matrix_eeconfig.mode == LED_MATRIX_TYPING_HEATMAP) {
+    //    process_led_matrix_typing_heatmap(row, col);
+    //}
 #endif  // defined(LED_MATRIX_FRAMEBUFFER_EFFECTS) && !defined(DISABLE_LED_MATRIX_TYPING_HEATMAP)
 }
 
@@ -222,6 +222,119 @@ static bool led_matrix_uniform_brightness(effect_params_t *params) {
     uint8_t val = led_matrix_eeconfig.val;
     for (uint8_t i = led_min; i < led_max; i++) {
         LED_MATRIX_TEST_LED_FLAGS();
+        led_matrix_set_value(i, val);
+    }
+    return led_max < DRIVER_LED_TOTAL;
+}
+
+static bool led_matrix_light_on_press(effect_params_t *params) {
+    uint8_t lop_offset = led_matrix_eeconfig.val;
+    led_matrix_set_value_all(lop_offset);
+    for(int i = 0; i < LED_HITS_TO_REMEMBER; i++) {
+        uint8_t val;
+        if(g_last_hit_tracker.tick[i] > 255) {
+            val = lop_offset;
+        } else {
+            //val = (255 - g_last_hit_tracker.tick[i]) + lop_offset;
+            val = g_last_hit_tracker.tick[i];
+        }
+        led_matrix_set_value(g_last_hit_tracker.index[i], val);
+    }
+    return false;
+}
+
+
+static bool led_matrix_breathing(effect_params_t* params) {
+    LED_MATRIX_USE_LIMITS(led_min, led_max);
+
+    uint8_t base_bright = led_matrix_eeconfig.val;
+    uint16_t time = scale16by8(g_led_timer, 8);
+    uint8_t value = scale8(abs8(sin8(time) - 128) * 2, base_bright);
+    for (uint8_t i = led_min; i < led_max; i++) {
+        LED_MATRIX_TEST_LED_FLAGS();
+        led_matrix_set_value(i, value);
+    }
+    return led_max < DRIVER_LED_TOTAL;
+}
+
+uint8_t SOLID_SPLASH_math(uint8_t val, int16_t dx, int16_t dy, uint8_t dist, uint16_t tick) {
+    uint16_t effect = tick - dist;
+    if (effect > 255) effect = 255;
+    val = qadd8(val, 255 - effect);
+    return val;
+}
+
+/*
+static bool led_matrix_reactive_splash(effect_params_t* params) {
+    LED_MATRIX_USE_LIMITS(led_min, led_max);
+
+    //uint8_t lop_offset = led_matrix_eeconfig.val / 4;
+    led_matrix_set_value_all(0);
+    uint8_t start = qsub8(g_last_hit_tracker.count, 1);
+
+    uint8_t count = g_last_hit_tracker.count;
+    for (uint8_t i = led_min; i < led_max; i++) {
+        LED_MATRIX_TEST_LED_FLAGS();
+        uint8_t val = led_matrix_eeconfig.val;
+        for (uint8_t j = start; j < count; j++) {
+            int16_t dx = g_led_config.point[i].x - g_last_hit_tracker.x[j];
+            int16_t dy = g_led_config.point[i].y - g_last_hit_tracker.y[j];
+            uint8_t dist = sqrt16(dx * dx + dy * dy);
+            uint16_t tick = scale16by8(g_last_hit_tracker.tick[j], led_matrix_eeconfig.speed);
+            val = SOLID_SPLASH_math(val, dx, dy, dist, tick);
+        }
+        val = scale8(val, led_matrix_eeconfig.val);
+        //led_matrix_set_value(i, val);
+        led_matrix_set_value(i, 255);
+    }
+    return led_max < DRIVER_LED_TOTAL;
+}*/
+
+static bool led_matrix_reactive_splash(effect_params_t* params) {
+    //LED_MATRIX_USE_LIMITS(led_min, led_max);
+
+    //uint8_t lop_offset = led_matrix_eeconfig.val / 4;
+    led_matrix_set_value_all(0);
+    uint8_t start = qsub8(g_last_hit_tracker.count, 1);
+
+    uint8_t count = g_last_hit_tracker.count;
+    for (uint8_t i = 0; i < DRIVER_LED_TOTAL; i++) {
+        LED_MATRIX_TEST_LED_FLAGS();
+        uint8_t val = led_matrix_eeconfig.val / 16;
+        for (uint8_t j = start; j < count; j++) {
+            int16_t dx = g_led_config.point[i].x - g_last_hit_tracker.x[j];
+            int16_t dy = g_led_config.point[i].y - g_last_hit_tracker.y[j];
+            uint8_t dist = sqrt16(dx * dx + dy * dy);
+            uint16_t tick = scale16by8(g_last_hit_tracker.tick[j], led_matrix_eeconfig.speed);
+            val = SOLID_SPLASH_math(val, dx, dy, dist, tick);
+        }
+        val = scale8(val, led_matrix_eeconfig.val);
+        led_matrix_set_value(i, val);
+    }
+    //return led_max < DRIVER_LED_TOTAL;
+    return false;
+}
+
+static bool led_matrix_reactive_multisplash(effect_params_t* params) {
+    LED_MATRIX_USE_LIMITS(led_min, led_max);
+
+    //uint8_t lop_offset = led_matrix_eeconfig.val / 4;
+    led_matrix_set_value_all(0);
+    uint8_t start = 0;
+
+    uint8_t count = g_last_hit_tracker.count;
+    //for (uint8_t i = led_min; i < led_max; i++) {
+    for (uint8_t i = 0; i < DRIVER_LED_TOTAL; i++) {
+        LED_MATRIX_TEST_LED_FLAGS();
+        uint8_t val = led_matrix_eeconfig.val / 16;
+        for (uint8_t j = start; j < count; j++) {
+            int16_t dx = g_led_config.point[i].x - g_last_hit_tracker.x[j];
+            int16_t dy = g_led_config.point[i].y - g_last_hit_tracker.y[j];
+            uint8_t dist = sqrt16(dx * dx + dy * dy);
+            uint16_t tick = scale16by8(g_last_hit_tracker.tick[j], led_matrix_eeconfig.speed);
+            val = SOLID_SPLASH_math(val, dx, dy, dist, tick);
+        }
+        val = scale8(val, led_matrix_eeconfig.val);
         led_matrix_set_value(i, val);
     }
     return led_max < DRIVER_LED_TOTAL;
@@ -292,6 +405,18 @@ static void led_task_render(uint8_t effect) {
             break;
         case LED_MATRIX_UNIFORM_BRIGHTNESS:
             rendering = led_matrix_uniform_brightness(&led_effect_params);
+            break;
+        case LED_MATRIX_LIGHT_ON_PRESS:
+            rendering = led_matrix_light_on_press(&led_effect_params);
+            break;
+        case LED_MATRIX_BREATHING:
+            rendering = led_matrix_breathing(&led_effect_params);
+            break;
+        case LED_MATRIX_SOLID_SPLASH:
+            rendering = led_matrix_reactive_splash(&led_effect_params);
+            break;
+        case LED_MATRIX_SOLID_MULTISPLASH:
+            rendering = led_matrix_reactive_multisplash(&led_effect_params);
             break;
     }
 

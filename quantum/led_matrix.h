@@ -54,6 +54,10 @@ enum led_matrix_effects {
     LED_MATRIX_NONE = 0,
 
     LED_MATRIX_UNIFORM_BRIGHTNESS,
+    LED_MATRIX_LIGHT_ON_PRESS,
+    LED_MATRIX_BREATHING,
+    LED_MATRIX_SOLID_SPLASH,
+    LED_MATRIX_SOLID_MULTISPLASH,
     // All new effects go above this line
 
     LED_MATRIX_EFFECT_MAX
